@@ -11,8 +11,8 @@ export default function Header() {
       <div className="w-full flex items-center justify-between mb-2">
         {/* Left: Empty for spacing */}
         <div className="w-1/4" />
-        {/* Center: Logo */}
-        <div className="flex-1 flex justify-center">
+        {/* Center: Logo and Brand Name */}
+        <div className="flex-1 flex flex-col items-center">
           <Image
             src="/logo.png" // Replace with your actual logo file name
             alt="Jewels by Zariya Logo"
@@ -21,6 +21,7 @@ export default function Header() {
             className="object-contain"
             priority
           />
+          <span className="mt-2 text-2xl font-serif font-bold text-gray-900 tracking-wide">JEWELS BY ZARIYA</span>
         </div>
         {/* Right: Icons */}
         <div className="w-1/4 flex justify-end items-center gap-4">
