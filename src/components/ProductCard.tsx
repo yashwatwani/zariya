@@ -2,6 +2,10 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
+import { ShoppingBagIcon, HeartIcon } from "@heroicons/react/24/outline";
+import { HeartIcon as HeartIconSolid } from "@heroicons/react/24/solid";
+import { useWishlist } from "../context/WishlistContext";
+import products from "../data/products";
 
 interface ProductCardProps {
   product: {
@@ -12,11 +16,13 @@ interface ProductCardProps {
     imageAlt: string;
     secondaryImage: string;
     onQuickView: () => void;
+    id: string;
   };
 }
 
 export default function ProductCard({ product }: { product: ProductCardProps["product"] }) {
   const [hovered, setHovered] = useState(false);
+  const { toggleWishlist, isWishlisted } = useWishlist();
 
   return (
     <motion.div
@@ -26,8 +32,20 @@ export default function ProductCard({ product }: { product: ProductCardProps["pr
       onMouseLeave={() => setHovered(false)}
     >
       <div className="w-full h-72 flex items-center justify-center relative">
+        {/* Heart Icon top-right */}
+        <button
+          className="absolute top-3 right-3 z-10 bg-white/80 hover:bg-amber-100 rounded-full p-2 shadow transition"
+          onClick={e => { e.stopPropagation(); toggleWishlist(product.id); }}
+          aria-label={isWishlisted(product.id) ? "Remove from wishlist" : "Add to wishlist"}
+        >
+          {isWishlisted(product.id) ? (
+            <HeartIconSolid className="h-6 w-6 text-amber-700" />
+          ) : (
+            <HeartIcon className="h-6 w-6 text-amber-700" />
+          )}
+        </button>
         <AnimatePresence initial={false}>
-          {!hovered ? (
+          {!hovered || !product.secondaryImage ? (
             <motion.div key="main" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0">
               <Image src={product.image} alt={product.imageAlt} fill className="object-cover transition-all duration-300" />
             </motion.div>
@@ -37,18 +55,27 @@ export default function ProductCard({ product }: { product: ProductCardProps["pr
             </motion.div>
           )}
         </AnimatePresence>
-        {/* Quick View Button */}
+        {/* Quick View & Add to Cart Buttons */}
         <AnimatePresence>
           {hovered && (
-            <motion.button
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
-              className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-amber-700 text-white px-6 py-2 rounded-full shadow-lg font-serif text-lg tracking-wide hover:bg-amber-800 transition"
-              onClick={product.onQuickView}
+              className="absolute left-1/2 -translate-x-1/2 bottom-3 flex flex-col items-center gap-1 w-full px-4"
             >
-              Quick View
-            </motion.button>
+              <button
+                className="bg-amber-700 text-white px-3 py-0.5 rounded-full shadow font-serif text-sm tracking-wide hover:bg-amber-800 transition mb-0.5 w-fit min-w-[90px]"
+                onClick={product.onQuickView}
+              >
+                Quick View
+              </button>
+              <button
+                className="flex items-center justify-center gap-2 border border-amber-700 text-amber-700 bg-white font-serif text-sm py-0.5 px-3 rounded-full shadow hover:bg-amber-50 transition w-fit min-w-[90px]"
+              >
+                <ShoppingBagIcon className="h-4 w-4" /> Add to Cart
+              </button>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>

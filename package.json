@@ -12,6 +12,7 @@
     "@fontsource/cormorant-garamond": "^5.2.9",
     "@fontsource/playfair-display": "^5.2.6",
     "@heroicons/react": "^2.2.0",
+    "@supabase/supabase-js": "^2.50.2",
     "framer-motion": "^12.19.1",
     "next": "15.3.4",
     "react": "^19.0.0",

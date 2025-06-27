@@ -2,68 +2,32 @@
 import React, { useState, useEffect } from "react";
 import ProductCard from "./ProductCard";
 import ProductModal from "./ProductModal";
+import products from "../data/products";
 
-const demoProducts = [
-  {
-    name: "Emerald Radiance Ring",
-    price: "$2,450",
-    description: "A stunning emerald centerpiece set in 18k gold with a halo of diamonds.",
-    image: "/products/emerald-ring-1.jpg",
-    secondaryImage: "/products/emerald-ring-2.jpg",
-    imageAlt: "Emerald Radiance Ring",
-    specs: [
-      { label: "Material", value: "18k Gold" },
-      { label: "Gemstone", value: "Emerald, Diamond" },
-      { label: "Size", value: "6.5 US" },
-    ],
-  },
-  {
-    name: "Celestial Diamond Pendant",
-    price: "$1,980",
-    description: "Brilliant round-cut diamond pendant with a delicate platinum chain.",
-    image: "/products/diamond-pendant-1.jpg",
-    secondaryImage: "/products/diamond-pendant-2.jpg",
-    imageAlt: "Celestial Diamond Pendant",
-    specs: [
-      { label: "Material", value: "Platinum" },
-      { label: "Gemstone", value: "Diamond" },
-      { label: "Chain Length", value: "18 inches" },
-    ],
-  },
-  {
-    name: "Golden Grace Bracelet",
-    price: "$3,200",
-    description: "Elegant 22k gold bracelet with intricate filigree and sapphire accents.",
-    image: "/products/gold-bracelet-1.png",
-    secondaryImage: "/products/gold-bracelet-2.png",
-    imageAlt: "Golden Grace Bracelet",
-    specs: [
-      { label: "Material", value: "22k Gold" },
-      { label: "Gemstone", value: "Sapphire" },
-      { label: "Length", value: "7 inches" },
-    ],
-  }
-];
+interface ProductCarouselProps {
+  selectedTab: string;
+}
 
-export default function ProductCarousel() {
+export default function ProductCarousel({ selectedTab }: ProductCarouselProps) {
   const [startIdx, setStartIdx] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<typeof demoProducts[0] | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<typeof products[0] | null>(null);
+
+  // Filter products based on selectedTab
+  const filteredProducts = selectedTab === "All"
+    ? products
+    : products.filter((p) => p.type === selectedTab);
 
   // Auto-rotate every 10 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      setStartIdx((prev) => (prev + 3) % demoProducts.length);
+      setStartIdx((prev) => (prev + 3) % filteredProducts.length);
     }, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [filteredProducts.length]);
 
-  // Show 3 products at a time
-  const visibleProducts = [
-    demoProducts[startIdx],
-    demoProducts[(startIdx + 1) % demoProducts.length],
-    demoProducts[(startIdx + 2) % demoProducts.length],
-  ];
+  // Show up to 3 products at a time
+  const visibleProducts = filteredProducts.slice(0, 3);
 
   const handleQuickView = (product: any) => {
     setSelectedProduct(product);
@@ -72,10 +36,10 @@ export default function ProductCarousel() {
 
   return (
     <>
-      <div className="flex justify-center gap-8 w-full">
+      <div className="flex justify-center gap-8 w-full flex-wrap">
         {visibleProducts.map((product, idx) => (
           <ProductCard
-            key={product.name}
+            key={product.id}
             product={{
               ...product,
               onQuickView: () => handleQuickView(product),
