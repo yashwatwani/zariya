@@ -5,6 +5,7 @@ import Image from "next/image";
 import { ShoppingBagIcon, HeartIcon } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartIconSolid } from "@heroicons/react/24/solid";
 import { useWishlist } from "../context/WishlistContext";
+import { useCart } from "../context/CartContext";
 import products from "../data/products";
 
 interface ProductCardProps {
@@ -23,6 +24,7 @@ interface ProductCardProps {
 export default function ProductCard({ product }: { product: ProductCardProps["product"] }) {
   const [hovered, setHovered] = useState(false);
   const { toggleWishlist, isWishlisted } = useWishlist();
+  const { addToCart } = useCart();
 
   return (
     <motion.div
@@ -72,6 +74,7 @@ export default function ProductCard({ product }: { product: ProductCardProps["pr
               </button>
               <button
                 className="flex items-center justify-center gap-2 border border-amber-700 text-amber-700 bg-white font-serif text-sm py-0.5 px-3 rounded-full shadow hover:bg-amber-50 transition w-fit min-w-[90px]"
+                onClick={() => addToCart(product.id)}
               >
                 <ShoppingBagIcon className="h-4 w-4" /> Add to Cart
               </button>

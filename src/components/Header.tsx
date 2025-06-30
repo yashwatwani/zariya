@@ -9,6 +9,8 @@ const navTabs = [
   { label: "Rings", href: "/?category=Rings" },
   { label: "Pendants", href: "/?category=Pendants" },
   { label: "Bracelets", href: "/?category=Bracelets" },
+  { label: "Earrings", href: "/?category=Earrings" },
+  { label: "Men", href: "/?category=Men" },
 ];
 
 export default function Header() {

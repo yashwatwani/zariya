@@ -6,17 +6,27 @@ import products from "../data/products";
 
 interface ProductCarouselProps {
   selectedTab: string;
+  excludeMen?: boolean;
 }
 
-export default function ProductCarousel({ selectedTab }: ProductCarouselProps) {
+export default function ProductCarousel({ selectedTab, excludeMen = false }: ProductCarouselProps) {
   const [startIdx, setStartIdx] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<typeof products[0] | null>(null);
 
-  // Filter products based on selectedTab
-  const filteredProducts = selectedTab === "All"
+  // Filter products based on selectedTab (case-insensitive, trimmed)
+  let filteredProducts = (selectedTab === "All"
     ? products
-    : products.filter((p) => p.type === selectedTab);
+    : products.filter((p) =>
+        (p.type || "").toLowerCase().trim() === selectedTab.toLowerCase().trim()
+      )
+  ).map((p) => ({ ...p, secondaryImage: p.secondaryImage || "" }));
+
+  if (excludeMen) {
+    filteredProducts = filteredProducts.filter(
+      (p) => (p.type || "").toLowerCase().trim() !== "men"
+    );
+  }
 
   // Auto-rotate every 10 seconds
   useEffect(() => {
@@ -34,14 +44,16 @@ export default function ProductCarousel({ selectedTab }: ProductCarouselProps) {
     setModalOpen(true);
   };
 
+  // Show all products in a responsive grid
   return (
     <>
-      <div className="flex justify-center gap-8 w-full flex-wrap">
-        {visibleProducts.map((product, idx) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 w-full">
+        {filteredProducts.map((product) => (
           <ProductCard
             key={product.id}
             product={{
               ...product,
+              secondaryImage: product.secondaryImage || "",
               onQuickView: () => handleQuickView(product),
             }}
           />
@@ -50,7 +62,7 @@ export default function ProductCarousel({ selectedTab }: ProductCarouselProps) {
       <ProductModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        product={selectedProduct}
+        product={selectedProduct ? { ...selectedProduct, secondaryImage: selectedProduct.secondaryImage || "" } : null}
       />
     </>
   );

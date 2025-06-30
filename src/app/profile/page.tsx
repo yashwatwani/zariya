@@ -39,11 +39,42 @@ export default function ProfilePage() {
   ];
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
-    const { data: listener } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
-      setUser(session?.user ?? null);
+    // Get initial user
+    const getUser = async () => {
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error) {
+          console.error('Error getting user:', error);
+          // If there's an auth error, clear the session
+          if (error.message.includes('Invalid Refresh Token') || error.message.includes('Refresh Token Not Found')) {
+            await supabase.auth.signOut();
+            setUser(null);
+          }
+        } else {
+          setUser(user);
+        }
+      } catch (err) {
+        console.error('Error in getUser:', err);
+        setUser(null);
+      }
+    };
+
+    getUser();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email);
+      
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        setUser(session?.user ?? null);
+      }
     });
-    return () => { listener?.subscription.unsubscribe(); };
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Email + Password Login
@@ -110,9 +141,19 @@ export default function ProfilePage() {
 
   // Logout
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setMessage("Logged out.");
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Logout error:', error);
+        setMessage('Error logging out. Please try again.');
+      } else {
+        setUser(null);
+        setMessage('Logged out successfully.');
+      }
+    } catch (err) {
+      console.error('Logout error:', err);
+      setMessage('Error logging out. Please try again.');
+    }
   };
 
   // Edit profile handlers
@@ -140,68 +181,74 @@ export default function ProfilePage() {
 
   if (user) {
     return (
-      <main className="flex flex-col items-center justify-center min-h-[60vh] py-16 bg-gradient-to-b from-[#f8f5ef] to-white">
-        <h1 className="text-4xl font-serif font-bold mb-6 text-amber-700 tracking-tight">Your Profile</h1>
-        <div className="bg-white/90 rounded-2xl shadow-2xl border border-gray-100 p-10 w-full max-w-xl flex flex-col items-center">
-          <div className="flex gap-4 mb-8">
-            <button onClick={() => setProfileTab('account')} className={`px-6 py-2 rounded-full font-serif text-lg transition shadow-sm border ${profileTab === 'account' ? 'bg-amber-700 text-white border-amber-700' : 'bg-gray-50 text-gray-800 border-gray-200 hover:bg-amber-50'}`}>Account Info</button>
-            <button onClick={() => setProfileTab('orders')} className={`px-6 py-2 rounded-full font-serif text-lg transition shadow-sm border ${profileTab === 'orders' ? 'bg-amber-700 text-white border-amber-700' : 'bg-gray-50 text-gray-800 border-gray-200 hover:bg-amber-50'}`}>My Orders</button>
+      <main className="flex flex-col items-center justify-center min-h-[60vh] py-16 bg-[#f8f5ef]">
+        <div className="w-full max-w-md mx-auto bg-white rounded-xl shadow-xl p-10 flex flex-col items-center">
+          <h1 className="text-3xl font-serif font-bold mb-8 text-gray-900">Your Profile</h1>
+          <div className="flex w-full mb-8">
+            <button
+              className={`flex-1 py-2 rounded-l-full font-serif text-lg font-bold transition border ${profileTab === 'account' ? 'bg-black text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              onClick={() => setProfileTab('account')}
+            >
+              Account Info
+            </button>
+            <button
+              className={`flex-1 py-2 rounded-r-full font-serif text-lg font-bold transition border-l-0 border ${profileTab === 'orders' ? 'bg-black text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              onClick={() => setProfileTab('orders')}
+            >
+              My Orders
+            </button>
           </div>
           {profileTab === 'account' && (
-            <div className="w-full">
-              {!editing ? (
-                <>
-                  <div className="mb-4 flex items-center gap-2"><UserIcon className="h-6 w-6 text-amber-700" /> <span className="font-bold text-lg">{user.email}</span></div>
-                  <div className="mb-2 text-gray-700 flex items-center gap-2"><span className="font-semibold">Name:</span> {user.user_metadata?.name || <span className="italic text-gray-400">Not set</span>}</div>
-                  <div className="mb-2 text-gray-700 flex items-center gap-2"><DevicePhoneMobileIcon className="h-5 w-5 text-amber-700" /> {user.user_metadata?.phone || <span className="italic text-gray-400">Not set</span>}</div>
-                  <button onClick={startEdit} className="mt-4 bg-amber-700 hover:bg-amber-800 text-white py-2 px-8 rounded-full font-serif text-lg shadow transition flex items-center gap-2"><PencilIcon className="h-5 w-5" /> Edit</button>
-                  {editMessage && <div className="mt-2 text-green-700 font-medium">{editMessage}</div>}
-                </>
-              ) : (
-                <div className="flex flex-col gap-4">
-                  <div className="relative">
-                    <input type="text" value={editName} onChange={e => setEditName(e.target.value)} className="peer border-b-2 border-gray-300 focus:border-amber-700 bg-transparent w-full py-3 px-2 text-lg focus:outline-none transition" placeholder=" " />
-                    <label className="absolute left-2 top-3 text-gray-500 text-base transition-all bg-white px-1">Name</label>
-                  </div>
-                  <div className="relative">
-                    <input type="tel" value={editPhone} onChange={e => setEditPhone(e.target.value)} className="peer border-b-2 border-gray-300 focus:border-amber-700 bg-transparent w-full py-3 px-2 text-lg focus:outline-none transition" placeholder=" " />
-                    <label className="absolute left-2 top-3 text-gray-500 text-base transition-all bg-white px-1">Phone Number</label>
-                  </div>
-                  <div className="flex gap-4 mt-2">
-                    <button onClick={saveEdit} className="bg-amber-700 hover:bg-amber-800 text-white py-2 px-8 rounded-full font-serif text-lg shadow transition flex items-center gap-2"><ArrowPathIcon className="h-5 w-5" /> Save</button>
-                    <button onClick={cancelEdit} className="bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 px-8 rounded-full font-serif text-lg shadow transition">Cancel</button>
-                  </div>
-                  {editMessage && <div className="mt-2 text-green-700 font-medium">{editMessage}</div>}
-                </div>
-              )}
-              <button onClick={handleLogout} className="bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-8 rounded-full mt-8 font-serif text-lg shadow transition">Logout</button>
+            <div className="w-full flex flex-col gap-4">
+              <div className="text-lg font-semibold text-gray-800">Email:</div>
+              <div className="text-base text-gray-600 mb-2">{user.email}</div>
+              <div className="text-lg font-semibold text-gray-800">Name:</div>
+              <div className="text-base text-gray-600 mb-2">{user.user_metadata?.name || <span className="italic text-gray-400">Not set</span>}</div>
+              <div className="text-lg font-semibold text-gray-800">Phone:</div>
+              <div className="text-base text-gray-600">{user.user_metadata?.phone || <span className="italic text-gray-400">Not set</span>}</div>
+              <button className="mt-6 w-full bg-black text-white font-bold text-lg py-3 rounded transition hover:bg-gray-900">Edit</button>
+              <button 
+                onClick={handleLogout}
+                className="w-full border border-black text-black font-semibold text-lg py-2 rounded transition hover:bg-gray-100 mt-2"
+              >
+                Logout
+              </button>
+              {message && <div className="text-sm text-center mt-2 text-gray-600">{message}</div>}
             </div>
           )}
           {profileTab === 'orders' && (
-            <div className="w-full">
-              <h2 className="text-2xl font-serif font-semibold mb-4 text-amber-700">Order History</h2>
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50">
-                    <th className="py-2 px-3 font-semibold">Order ID</th>
-                    <th className="py-2 px-3 font-semibold">Date</th>
-                    <th className="py-2 px-3 font-semibold">Status</th>
-                    <th className="py-2 px-3 font-semibold">Total</th>
-                    <th className="py-2 px-3 font-semibold">Items</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orders.map(order => (
-                    <tr key={order.id} className="border-b">
-                      <td className="py-2 px-3">{order.id}</td>
-                      <td className="py-2 px-3">{order.date}</td>
-                      <td className="py-2 px-3">{order.status}</td>
-                      <td className="py-2 px-3">{order.total}</td>
-                      <td className="py-2 px-3">{order.items.join(", ")}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="w-full flex flex-col items-center">
+              <h2 className="text-3xl font-serif font-extrabold mb-8 text-amber-800 tracking-tight">Order History</h2>
+              {orders.length === 0 ? (
+                <div className="text-gray-400 text-lg italic py-12">You have not placed any orders yet.</div>
+              ) : (
+                <div className="overflow-x-auto w-full">
+                  <table className="w-full text-left border-separate border-spacing-y-3">
+                    <thead>
+                      <tr>
+                        <th className="py-3 px-4 font-bold text-gray-700 text-base">Order ID</th>
+                        <th className="py-3 px-4 font-bold text-gray-700 text-base">Date</th>
+                        <th className="py-3 px-4 font-bold text-gray-700 text-base">Status</th>
+                        <th className="py-3 px-4 font-bold text-gray-700 text-base">Total</th>
+                        <th className="py-3 px-4 font-bold text-gray-700 text-base">Items</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {orders.map(order => (
+                        <tr key={order.id} className="bg-white shadow-sm rounded-xl transition hover:bg-amber-50">
+                          <td className="py-3 px-4 font-mono text-sm rounded-l-xl">{order.id}</td>
+                          <td className="py-3 px-4 text-sm">{order.date}</td>
+                          <td className="py-3 px-4 text-sm">
+                            <span className={`px-3 py-1 rounded-full font-semibold text-xs ${order.status === 'Delivered' ? 'bg-green-100 text-green-700' : order.status === 'Shipped' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-600'}`}>{order.status}</span>
+                          </td>
+                          <td className="py-3 px-4 text-sm">{order.total}</td>
+                          <td className="py-3 px-4 text-sm rounded-r-xl">{order.items.join(", ")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -210,85 +257,91 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="flex flex-col items-center justify-center min-h-[60vh] py-16 bg-gradient-to-b from-[#f8f5ef] to-white">
-      {showToast && (
-        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg font-semibold text-lg animate-fade-in-out">
-          Registration successful! Check your email for confirmation.
-        </div>
-      )}
-      <h1 className="text-4xl font-serif font-bold mb-8 text-amber-700 tracking-tight">Account</h1>
-      <div className="bg-white/90 rounded-2xl shadow-2xl border border-gray-100 p-10 w-full max-w-md">
-        <div className="flex justify-center gap-4 mb-8">
-          <button onClick={() => setView("login")}
-            className={`flex items-center gap-2 px-6 py-2 rounded-full font-serif text-lg transition shadow-sm border ${view === "login" ? "bg-amber-700 text-white border-amber-700" : "bg-gray-50 text-gray-800 border-gray-200 hover:bg-amber-50"}`}>Login</button>
-          <button onClick={() => setView("register")}
-            className={`flex items-center gap-2 px-6 py-2 rounded-full font-serif text-lg transition shadow-sm border ${view === "register" ? "bg-amber-700 text-white border-amber-700" : "bg-gray-50 text-gray-800 border-gray-200 hover:bg-amber-50"}`}>Register</button>
-        </div>
-        {view === "login" && (
-          <>
-            <div className="flex justify-center gap-4 mb-6">
-              <button onClick={() => setLoginMethod("password")}
-                className={`flex items-center gap-2 px-3 py-1 rounded font-serif text-base transition border ${loginMethod === "password" ? "bg-amber-700 text-white border-amber-700" : "bg-gray-50 text-gray-800 border-gray-200 hover:bg-amber-50"}`}
-              >
-                <KeyIcon className="h-5 w-5" /> Password
-              </button>
-              <button onClick={() => setLoginMethod("otp")}
-                className={`flex items-center gap-2 px-3 py-1 rounded font-serif text-base transition border ${loginMethod === "otp" ? "bg-amber-700 text-white border-amber-700" : "bg-gray-50 text-gray-800 border-gray-200 hover:bg-amber-50"}`}
-              >
-                <EnvelopeIcon className="h-5 w-5" /> OTP to Email
-              </button>
+    <main className="flex flex-col items-center justify-center min-h-[60vh] py-16 bg-[#f8f5ef]">
+      <div className="w-full max-w-md mx-auto bg-white rounded-xl shadow-xl p-10 flex flex-col items-center">
+        <h1 className="text-3xl font-serif font-bold mb-8 text-gray-900">{view === 'register' ? 'Register' : 'Log In'}</h1>
+        <form onSubmit={view === 'register' ? handleRegister : handleLogin} className="w-full flex flex-col gap-4">
+          {view === 'register' && (
+            <>
+              <input
+                type="text"
+                placeholder="First Name"
+                value={name.split(' ')[0] || ''}
+                onChange={e => setName(e.target.value + (name.includes(' ') ? ' ' + name.split(' ').slice(1).join(' ') : ''))}
+                className="w-full border border-gray-200 rounded px-4 py-3 text-lg focus:border-black outline-none"
+                autoComplete="given-name"
+              />
+              <input
+                type="text"
+                placeholder="Last Name"
+                value={name.split(' ').slice(1).join(' ')}
+                onChange={e => setName((name.split(' ')[0] || '') + ' ' + e.target.value)}
+                className="w-full border border-gray-200 rounded px-4 py-3 text-lg focus:border-black outline-none"
+                autoComplete="family-name"
+              />
+            </>
+          )}
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            className="w-full border border-gray-200 rounded px-4 py-3 text-lg focus:border-black outline-none"
+            autoComplete="email"
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            className="w-full border border-gray-200 rounded px-4 py-3 text-lg focus:border-black outline-none"
+            autoComplete={view === 'register' ? 'new-password' : 'current-password'}
+          />
+          {view === 'register' && (
+            <input
+              type="tel"
+              placeholder="Phone Number"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              className="w-full border border-gray-200 rounded px-4 py-3 text-lg focus:border-black outline-none"
+              autoComplete="tel"
+            />
+          )}
+          {view === 'register' && (
+            <div className="text-xs text-gray-500 mb-2 mt-1">
+              Sign up for early Sale access plus tailored new arrivals, trends and promotions. To opt out, click unsubscribe in our emails.
             </div>
-            <form onSubmit={handleLogin} className="flex flex-col gap-6">
-              <div className="relative">
-                <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
-                  className="peer border-b-2 border-gray-300 focus:border-amber-700 bg-transparent w-full py-3 px-2 text-lg focus:outline-none transition placeholder-transparent" placeholder=" " />
-                <label className="absolute left-2 top-3 text-gray-500 text-base transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-base peer-focus:-top-5 peer-focus:text-sm peer-focus:text-amber-700 peer-[&:not(:placeholder-shown)]:-top-5 peer-[&:not(:placeholder-shown)]:text-sm peer-[&:not(:placeholder-shown)]:text-amber-700 bg-white px-1">Email</label>
+          )}
+          {message && <div className="text-red-600 text-sm mb-2">{message}</div>}
+          <button
+            type="submit"
+            className="w-full bg-black text-white font-bold text-lg py-3 rounded transition hover:bg-gray-900 mb-2"
+          >
+            {view === 'register' ? 'REGISTER' : 'SIGN IN'}
+          </button>
+        </form>
+        <div className="w-full flex flex-col gap-2 mt-4">
+          {view === 'register' ? (
+            <button
+              onClick={() => setView('login')}
+              className="w-full border border-black text-black font-semibold text-lg py-2 rounded transition hover:bg-gray-100"
+            >
+              Log In
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => setView('register')}
+                className="w-full border border-black text-black font-semibold text-lg py-2 rounded transition hover:bg-gray-100"
+              >
+                Register
+              </button>
+              <div className="text-xs text-gray-500 mt-2">
+                New customer? Sign up for early Sale access plus tailored new arrivals, trends and promotions. To opt out, click unsubscribe in our emails.
               </div>
-              {loginMethod === "password" && (
-                <div className="relative">
-                  <input type="password" required value={password} onChange={e => setPassword(e.target.value)}
-                    className="peer border-b-2 border-gray-300 focus:border-amber-700 bg-transparent w-full py-3 px-2 text-lg focus:outline-none transition placeholder-transparent" placeholder=" " />
-                  <label className="absolute left-2 top-3 text-gray-500 text-base transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-base peer-focus:-top-5 peer-focus:text-sm peer-focus:text-amber-700 peer-[&:not(:placeholder-shown)]:-top-5 peer-[&:not(:placeholder-shown)]:text-sm peer-[&:not(:placeholder-shown)]:text-amber-700 bg-white px-1">Password</label>
-                </div>
-              )}
-              <button type="submit" className="bg-amber-700 hover:bg-amber-800 text-white py-3 rounded-full font-serif text-lg shadow transition w-full mt-2">Login</button>
-            </form>
-          </>
-        )}
-        {view === "register" && (
-          <form onSubmit={handleRegister} className="flex flex-col gap-6">
-            <div className="relative">
-              <input type="text" required value={name} onChange={e => setName(e.target.value)}
-                className={`peer border-b-2 border-gray-300 focus:border-amber-700 bg-transparent w-full py-3 px-2 text-lg focus:outline-none transition placeholder-transparent ${errors.name ? 'border-red-500' : ''}`}
-                placeholder=" " />
-              <label className="absolute left-2 top-3 text-gray-500 text-base transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-base peer-focus:-top-5 peer-focus:text-sm peer-focus:text-amber-700 peer-[&:not(:placeholder-shown)]:-top-5 peer-[&:not(:placeholder-shown)]:text-sm peer-[&:not(:placeholder-shown)]:text-amber-700 bg-white px-1">Name</label>
-              {errors.name && <span className="text-red-500 text-xs absolute left-2 -bottom-5">{errors.name}</span>}
-            </div>
-            <div className={`relative ${errors.phone ? 'mb-6' : ''}`}>
-              <input type="tel" required value={phone} onChange={e => setPhone(e.target.value)}
-                className={`peer border-b-2 border-gray-300 focus:border-amber-700 bg-transparent w-full py-3 px-2 text-lg focus:outline-none transition placeholder-transparent ${errors.phone ? 'border-red-500' : ''}`}
-                placeholder=" " />
-              <label className="absolute left-2 top-3 text-gray-500 text-base transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-base peer-focus:-top-5 peer-focus:text-sm peer-focus:text-amber-700 peer-[&:not(:placeholder-shown)]:-top-5 peer-[&:not(:placeholder-shown)]:text-sm peer-[&:not(:placeholder-shown)]:text-amber-700 bg-white px-1">Phone Number</label>
-              {errors.phone && <span className="text-red-500 text-xs absolute left-2 -bottom-5">{errors.phone}</span>}
-            </div>
-            <div className="relative">
-              <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
-                className={`peer border-b-2 border-gray-300 focus:border-amber-700 bg-transparent w-full py-3 px-2 text-lg focus:outline-none transition placeholder-transparent ${errors.email ? 'border-red-500' : ''}`}
-                placeholder=" " />
-              <label className="absolute left-2 top-3 text-gray-500 text-base transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-base peer-focus:-top-5 peer-focus:text-sm peer-focus:text-amber-700 peer-[&:not(:placeholder-shown)]:-top-5 peer-[&:not(:placeholder-shown)]:text-sm peer-[&:not(:placeholder-shown)]:text-amber-700 bg-white px-1">Email</label>
-              {errors.email && <span className="text-red-500 text-xs absolute left-2 -bottom-5">{errors.email}</span>}
-            </div>
-            <div className="relative">
-              <input type="password" required value={password} onChange={e => setPassword(e.target.value)}
-                className={`peer border-b-2 border-gray-300 focus:border-amber-700 bg-transparent w-full py-3 px-2 text-lg focus:outline-none transition placeholder-transparent ${errors.password ? 'border-red-500' : ''}`}
-                placeholder=" " />
-              <label className="absolute left-2 top-3 text-gray-500 text-base transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-base peer-focus:-top-5 peer-focus:text-sm peer-focus:text-amber-700 peer-[&:not(:placeholder-shown)]:-top-5 peer-[&:not(:placeholder-shown)]:text-sm peer-[&:not(:placeholder-shown)]:text-amber-700 bg-white px-1">Password</label>
-              {errors.password && <span className="text-red-500 text-xs absolute left-2 -bottom-5">{errors.password}</span>}
-            </div>
-            <button type="submit" className="bg-amber-700 hover:bg-amber-800 text-white py-3 rounded-full font-serif text-lg shadow transition w-full mt-2">Register</button>
-          </form>
-        )}
-        {message && <div className="mt-6 text-center text-amber-700 font-medium">{message}</div>}
+            </>
+          )}
+        </div>
       </div>
     </main>
   );

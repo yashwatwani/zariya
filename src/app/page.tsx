@@ -8,10 +8,14 @@ export default function Home() {
   const searchParams = useSearchParams();
   const selectedTab = searchParams.get("category") || "All";
 
+  // Only show 'Men' products when Men tab is selected, and exclude them from 'All'
+  const showMen = selectedTab === "Men";
+  const filteredTab = showMen ? "Men" : selectedTab;
+
   return (
     <main className="flex flex-col items-center justify-center min-h-screen bg-white pt-0">
       {/* Hero Banner Section - only show on 'All' */}
-      {selectedTab === "All" && (
+      {filteredTab === "All" && (
         <section className="w-full bg-[#f8f5ef] border-b border-gray-100 flex flex-col md:flex-row items-stretch justify-center p-0">
           {/* Hero Image (left) */}
           <div className="w-full md:w-1/2 h-[420px] md:h-[520px] relative">
@@ -40,7 +44,7 @@ export default function Home() {
       {/* Product Carousel Area */}
       <section className="w-full max-w-7xl mx-auto">
         <div className="mt-8">
-          <ProductCarousel selectedTab={selectedTab} />
+          <ProductCarousel selectedTab={filteredTab} excludeMen={filteredTab === "All"} />
         </div>
       </section>
     </main>
