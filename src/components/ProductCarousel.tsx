@@ -7,9 +7,10 @@ import products from "../data/products";
 interface ProductCarouselProps {
   selectedTab: string;
   excludeMen?: boolean;
+  forceFirstProductId?: string;
 }
 
-export default function ProductCarousel({ selectedTab, excludeMen = false }: ProductCarouselProps) {
+export default function ProductCarousel({ selectedTab, excludeMen = false, forceFirstProductId }: ProductCarouselProps) {
   const [startIdx, setStartIdx] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<typeof products[0] | null>(null);
@@ -26,6 +27,15 @@ export default function ProductCarousel({ selectedTab, excludeMen = false }: Pro
     filteredProducts = filteredProducts.filter(
       (p) => (p.type || "").toLowerCase().trim() !== "men"
     );
+  }
+
+  // Ensure forceFirstProductId is first if present
+  if (forceFirstProductId) {
+    const idx = filteredProducts.findIndex(p => p.id === forceFirstProductId);
+    if (idx > 0) {
+      const [forced] = filteredProducts.splice(idx, 1);
+      filteredProducts.unshift(forced);
+    }
   }
 
   // Auto-rotate every 10 seconds

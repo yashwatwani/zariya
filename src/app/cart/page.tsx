@@ -29,17 +29,19 @@ export default function CartPage() {
                 <span className="font-semibold text-gray-700">{cartProducts.length} Item{cartProducts.length > 1 ? 's' : ''}</span>
               </div>
               {cartProducts.map((item) => (
-                <div key={item.id} className="flex gap-4 py-4 border-b last:border-b-0">
+                <div key={item.id + (item.options?.letter || "")}
+                  className="flex gap-4 py-4 border-b last:border-b-0">
                   <Image src={item.image} alt={item.imageAlt} width={90} height={90} className="rounded-lg object-cover border" />
                   <div className="flex-1 flex flex-col justify-between">
                     <div>
                       <div className="font-semibold text-lg text-gray-900 mb-1">{item.name}</div>
-                      {/* Add more details if available */}
-                      {/* <div className="text-xs text-gray-500">Color: ... | Size: ...</div> */}
+                      {item.options?.letter && (
+                        <div className="text-sm text-amber-700 font-serif mb-1">Letter: <span className="font-bold">{item.options.letter}</span></div>
+                      )}
                       <div className="text-sm text-gray-500">In Stock</div>
                     </div>
                     <div className="flex gap-4 items-center mt-2">
-                      <button onClick={() => removeFromCart(item.id)} className="text-gray-500 hover:text-red-600 text-xs underline">Remove</button>
+                      <button onClick={() => removeFromCart(item.id, item.options)} className="text-gray-500 hover:text-red-600 text-xs underline">Remove</button>
                       {/* <button className="text-gray-500 hover:text-amber-700 text-xs underline">Move to Wishlist</button> */}
                     </div>
                   </div>
@@ -50,7 +52,7 @@ export default function CartPage() {
                       <select
                         className="border rounded px-2 py-1 text-sm"
                         value={item.qty}
-                        onChange={e => updateQty(item.id, Number(e.target.value))}
+                        onChange={e => updateQty(item.id, Number(e.target.value), item.options)}
                       >
                         {[...Array(10)].map((_, i) => (
                           <option key={i+1} value={i+1}>{i+1}</option>

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { XMarkIcon, HeartIcon, ShoppingBagIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { useCart } from "../context/CartContext";
 
 interface ProductModalProps {
   open: boolean;
@@ -14,17 +15,43 @@ interface ProductModalProps {
     secondaryImage: string;
     imageAlt: string;
     specs?: { label: string; value: string }[];
+    id: string;
   } | null;
 }
 
+const GOLD_BUBBLE_ID = "gold-bubble-letter-necklace";
+const ALPHABETS = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i));
+
 export default function ProductModal({ open, onClose, product }: ProductModalProps) {
   const [imgIdx, setImgIdx] = useState(0);
+  const [selectedLetter, setSelectedLetter] = useState<string>("");
+  const [error, setError] = useState("");
+  const { addToCart } = useCart();
+
   if (!open || !product) return null;
   const images = [product.image];
   if (product.secondaryImage) images.push(product.secondaryImage);
 
   const handlePrev = () => setImgIdx((prev) => (prev === 0 ? images.length - 1 : prev - 1));
   const handleNext = () => setImgIdx((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+
+  const isGoldBubble = product && product.id === GOLD_BUBBLE_ID;
+
+  const handleAddToCart = () => {
+    if (isGoldBubble) {
+      if (!selectedLetter) {
+        setError("Please select a letter.");
+        return;
+      }
+      addToCart(product.id, { letter: selectedLetter });
+      setError("");
+      onClose();
+      setSelectedLetter("");
+    } else {
+      addToCart(product.id);
+      onClose();
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -93,6 +120,22 @@ export default function ProductModal({ open, onClose, product }: ProductModalPro
                     ))}
                   </ul>
                 )}
+                {isGoldBubble && (
+                  <div className="mb-4">
+                    <label className="block font-serif text-lg mb-2 text-gray-800">Select Letter</label>
+                    <select
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-amber-700"
+                      value={selectedLetter}
+                      onChange={e => { setSelectedLetter(e.target.value); setError(""); }}
+                    >
+                      <option value="">Choose a letter</option>
+                      {ALPHABETS.map((letter) => (
+                        <option key={letter} value={letter}>{letter}</option>
+                      ))}
+                    </select>
+                    {error && <div className="text-red-600 mt-2 text-sm">{error}</div>}
+                  </div>
+                )}
               </div>
               {/* <div className="flex gap-4 mt-2 w-full justify-center">
                 <button className="flex-1 flex items-center justify-center gap-2 border border-amber-700 text-amber-700 font-serif text-lg py-2 px-4 rounded-full hover:bg-amber-50 transition max-w-xs">
@@ -101,7 +144,10 @@ export default function ProductModal({ open, onClose, product }: ProductModalPro
               </div> */}
               {/* Add to Cart Button centered below details */}
               <div className="flex justify-center mt-3 w-full">
-                <button className="flex items-center justify-center gap-3 bg-amber-700 hover:bg-amber-800 text-white font-serif text-xl py-3 px-10 rounded-full shadow-lg transition w-full max-w-xs">
+                <button
+                  className="flex items-center justify-center gap-3 bg-amber-700 hover:bg-amber-800 text-white font-serif text-xl py-3 px-10 rounded-full shadow-lg transition w-full max-w-xs"
+                  onClick={handleAddToCart}
+                >
                   <ShoppingBagIcon className="h-7 w-7" /> Add to Cart
                 </button>
               </div>
